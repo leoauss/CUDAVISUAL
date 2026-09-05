@@ -1,0 +1,822 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <!-- Primary SEO -->
+  <title>CUDA Grid Visualizer — Interactive Blocks, Threads & Index Calculator</title>
+  <meta name="description" content="Free interactive CUDA grid, block, and thread visualizer. Set custom gridDim and blockDim, explore threadIdx and blockIdx mapping, compute global thread IDs, and understand CUDA kernel launch configurations visually." />
+  <meta name="keywords" content="CUDA, grid visualizer, block visualizer, thread visualizer, CUDA threads, CUDA blocks, threadIdx, blockIdx, blockDim, gridDim, CUDA kernel launch, GPU programming, CUDA tutorial, CUDA indexing, CUDA thread hierarchy, parallel programming, NVIDIA CUDA" />
+  <meta name="author" content="CUDA Grid Visualizer" />
+  <meta name="robots" content="index, follow" />
+  <meta name="theme-color" content="#0e0e0e" />
+
+  <!-- TODO: Replace YOUR-DOMAIN with your actual Vercel domain after deploy -->
+  <link rel="canonical" href="https://YOUR-DOMAIN.vercel.app/" />
+
+  <!-- Open Graph / Facebook -->
+  <meta property="og:type" content="website" />
+  <meta property="og:title" content="CUDA Grid Visualizer — Interactive Blocks, Threads & Index Calculator" />
+  <meta property="og:description" content="Set custom gridDim and blockDim, visualize the CUDA thread hierarchy, and compute threadIdx, blockIdx, and global thread IDs interactively." />
+  <meta property="og:url" content="https://YOUR-DOMAIN.vercel.app/" />
+  <meta property="og:site_name" content="CUDA Grid Visualizer" />
+
+  <!-- Twitter Card -->
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="CUDA Grid Visualizer — Interactive Blocks, Threads & Index Calculator" />
+  <meta name="twitter:description" content="Free tool to visualize CUDA grids, blocks, and threads. Enter custom dimensions and explore thread indexing in real time." />
+
+  <!-- Structured Data (JSON-LD) for rich results -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "WebApplication",
+    "name": "CUDA Grid Visualizer",
+    "description": "Interactive CUDA grid, block, and thread visualizer with custom dimensions and real-time index computation. Helps GPU programmers understand CUDA kernel launch configurations.",
+    "url": "https://YOUR-DOMAIN.vercel.app/",
+    "applicationCategory": "DeveloperApplication",
+    "operatingSystem": "Any",
+    "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+    "keywords": "CUDA, GPU programming, thread visualizer, grid visualizer, blockDim, gridDim, threadIdx, blockIdx"
+  }
+  </script>
+
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:         #0e0e0e;
+      --bg-raised:  #161616;
+      --bg-input:   #111111;
+      --border:     #252525;
+      --border-hi:  #333;
+      --text:       #b0b0b0;
+      --text-hi:    #e0e0e0;
+      --text-muted: #555;
+      --amber:      #e4a11b;
+      --amber-dim:  #a07414;
+      --amber-bg:   rgba(228,161,27,0.08);
+      --teal:       #2dd4a8;
+      --teal-dim:   #1a7a60;
+      --teal-bg:    rgba(45,212,168,0.06);
+      --red:        #e74c3c;
+      --blue:       #5b9fd4;
+      --dot-grid:   #1f1f1f;
+      --dc-bg:      #1a1a1a;
+      --scrollbar:  #222;
+      --code-kw:    #c678dd;
+      --code-cm:    #3a3a3a;
+      --sans:       'IBM Plex Sans', -apple-system, sans-serif;
+      --mono:       'IBM Plex Mono', 'Menlo', monospace;
+    }
+
+    [data-theme="light"] {
+      --bg:         #f5f5f0;
+      --bg-raised:  #eaeae4;
+      --bg-input:   #ffffff;
+      --border:     #d4d4cc;
+      --border-hi:  #bbb;
+      --text:       #444;
+      --text-hi:    #1a1a1a;
+      --text-muted: #888;
+      --amber:      #c88a10;
+      --amber-dim:  #9e6e0d;
+      --amber-bg:   rgba(200,138,16,0.1);
+      --teal:       #10a37f;
+      --teal-dim:   #0c7a5e;
+      --teal-bg:    rgba(16,163,127,0.08);
+      --red:        #d63031;
+      --blue:       #2e7cb8;
+      --dot-grid:   #ddd;
+      --dc-bg:      #fff;
+      --scrollbar:  #ccc;
+      --code-kw:    #a626a4;
+      --code-cm:    #aaa;
+    }
+
+    html { font-size: 16px; }
+
+    body {
+      font-family: var(--sans);
+      background: var(--bg);
+      color: var(--text);
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    /* ── Subtle dot-grid background ──────────── */
+    body::before {
+      content: '';
+      position: fixed; inset: 0;
+      background-image: radial-gradient(circle, var(--dot-grid) 1px, transparent 1px);
+      background-size: 24px 24px;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* ── Header ──────────────────────────────── */
+    .header {
+      position: relative; z-index: 10;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 18px 32px;
+      border-bottom: 1px solid var(--border);
+      background: var(--bg);
+    }
+    .header-mark {
+      width: 6px; height: 26px;
+      background: var(--amber);
+      border-radius: 1px;
+      flex-shrink: 0;
+    }
+    .header h1 {
+      font-family: var(--mono);
+      font-size: 1.05rem;
+      font-weight: 600;
+      color: var(--text-hi);
+      letter-spacing: 0.01em;
+    }
+    .header-tag {
+      font-family: var(--mono);
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      border: 1px solid var(--border);
+      padding: 3px 10px;
+      border-radius: 3px;
+    }
+
+    .header-spacer { margin-left: auto; }
+
+    /* Theme toggle */
+    .theme-toggle {
+      width: 36px; height: 36px;
+      display: grid; place-items: center;
+      background: var(--bg-raised);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      cursor: pointer;
+      color: var(--text-muted);
+      font-size: 1.05rem;
+      transition: border-color 0.15s, color 0.15s;
+      flex-shrink: 0;
+      line-height: 1;
+    }
+    .theme-toggle:hover {
+      border-color: var(--border-hi);
+      color: var(--text-hi);
+    }
+
+    /* ── Controls bar ────────────────────────── */
+    .controls {
+      position: relative; z-index: 10;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 14px;
+      padding: 18px 32px;
+      border-bottom: 1px solid var(--border);
+      background: var(--bg-raised);
+    }
+
+    .ctrl-group {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .ctrl-label {
+      font-family: var(--mono);
+      font-size: 0.82rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-right: 4px;
+    }
+    .ctrl-label.grid-label { color: var(--amber-dim); }
+    .ctrl-label.block-label { color: var(--teal-dim); }
+
+    .ctrl-axis {
+      font-family: var(--mono);
+      font-size: 0.8rem;
+      color: var(--text-muted);
+    }
+
+    .ctrl-input {
+      width: 56px;
+      padding: 8px 10px;
+      background: var(--bg-input);
+      border: 1px solid var(--border);
+      color: var(--text-hi);
+      font-family: var(--mono);
+      font-size: 0.9rem;
+      font-weight: 500;
+      border-radius: 3px;
+      outline: none;
+      text-align: center;
+      transition: border-color 0.15s;
+    }
+    .ctrl-input:focus { border-color: var(--amber); }
+
+    .ctrl-sep {
+      width: 1px;
+      height: 28px;
+      background: var(--border);
+      margin: 0 10px;
+    }
+
+    .ctrl-btn {
+      padding: 9px 22px;
+      background: var(--amber);
+      border: none;
+      color: #0e0e0e;
+      font-family: var(--mono);
+      font-size: 0.82rem;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      border-radius: 3px;
+      cursor: pointer;
+      transition: opacity 0.15s;
+    }
+    .ctrl-btn:hover { opacity: 0.85; }
+    .ctrl-btn:active { opacity: 0.7; }
+
+    /* Summary line */
+    .summary {
+      position: relative; z-index: 10;
+      padding: 12px 32px;
+      border-bottom: 1px solid var(--border);
+      background: var(--bg);
+      font-family: var(--mono);
+      font-size: 0.82rem;
+      color: var(--text-muted);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .summary .val { color: var(--text); font-weight: 500; }
+    .summary .sep { color: #2a2a2a; }
+
+    .warn-msg {
+      color: var(--red);
+      font-weight: 500;
+      display: none;
+    }
+    .warn-msg.show { display: inline; }
+
+    /* ── Main visualization area ─────────────── */
+    .workspace {
+      position: relative; z-index: 1;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .view-bar {
+      display: flex;
+      align-items: center;
+      padding: 14px 32px;
+      gap: 4px;
+    }
+
+    .view-pill {
+      padding: 7px 18px;
+      font-family: var(--mono);
+      font-size: 0.82rem;
+      font-weight: 500;
+      color: var(--text-muted);
+      background: transparent;
+      border: 1px solid transparent;
+      border-radius: 3px;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .view-pill:hover { color: var(--text); }
+    .view-pill.on {
+      color: var(--amber);
+      border-color: var(--border);
+      background: var(--amber-bg);
+    }
+
+    .crumb {
+      margin-left: 12px;
+      font-family: var(--mono);
+      font-size: 0.78rem;
+      color: var(--text-muted);
+    }
+    .crumb a {
+      color: var(--amber-dim);
+      cursor: pointer;
+      text-decoration: none;
+    }
+    .crumb a:hover { color: var(--amber); text-decoration: underline; }
+
+    .canvas {
+      flex: 1;
+      overflow: auto;
+      padding: 8px 32px 32px;
+    }
+    .canvas-empty {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      font-family: var(--mono);
+      font-size: 0.88rem;
+      color: var(--text-muted);
+    }
+
+    /* Z-layer */
+    .z-group { margin-bottom: 20px; }
+    .z-group:last-child { margin-bottom: 0; }
+    .z-tag {
+      font-family: var(--mono);
+      font-size: 0.78rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      margin-bottom: 10px;
+      letter-spacing: 0.06em;
+    }
+
+    /* Block cells */
+    .g-layer {
+      display: inline-grid;
+      gap: 5px;
+    }
+    .b-cell {
+      min-width: 62px;
+      min-height: 48px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: var(--mono);
+      font-size: 0.78rem;
+      font-weight: 500;
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 2px;
+      cursor: pointer;
+      transition: border-color 0.12s, background 0.12s, color 0.12s;
+      user-select: none;
+    }
+    .b-cell:hover {
+      border-color: var(--amber);
+      background: var(--amber-bg);
+      color: var(--text-hi);
+    }
+    .b-cell.sel {
+      border-color: var(--amber);
+      background: rgba(228,161,27,0.14);
+      color: var(--amber);
+      font-weight: 600;
+    }
+
+    /* Thread cells */
+    .t-cell {
+      min-width: 50px;
+      min-height: 40px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: var(--mono);
+      font-size: 0.74rem;
+      font-weight: 400;
+      color: var(--text-muted);
+      border: 1px solid var(--border);
+      border-radius: 2px;
+      cursor: default;
+      transition: border-color 0.12s, background 0.12s, color 0.12s;
+      user-select: none;
+    }
+    .t-cell:hover {
+      border-color: var(--teal-dim);
+      background: rgba(45,212,168,0.06);
+      color: var(--text-hi);
+    }
+    .t-cell.pin {
+      border-color: var(--teal);
+      background: rgba(45,212,168,0.1);
+      color: var(--teal);
+      font-weight: 500;
+    }
+
+    /* ── Detail card (floating) ──────────────── */
+    .detail-card {
+      position: fixed;
+      z-index: 500;
+      width: 280px;
+      background: var(--dc-bg);
+      border: 1px solid var(--border-hi);
+      border-radius: 4px;
+      padding: 16px 18px;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.12s;
+      box-shadow: 0 12px 40px rgba(0,0,0,0.5);
+    }
+    .detail-card.on { opacity: 1; pointer-events: auto; }
+
+    .dc-head {
+      font-family: var(--mono);
+      font-size: 0.82rem;
+      font-weight: 600;
+      color: var(--text-hi);
+      margin-bottom: 10px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid var(--border);
+    }
+    .dc-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 4px 0;
+      font-size: 0.8rem;
+    }
+    .dc-k { color: var(--text-muted); }
+    .dc-v { font-family: var(--mono); font-weight: 500; color: var(--text-hi); }
+
+    /* ── Footer / code bar ───────────────────── */
+    .foot {
+      position: relative; z-index: 10;
+      border-top: 1px solid var(--border);
+      background: var(--bg-raised);
+      padding: 14px 32px;
+      font-family: var(--mono);
+      font-size: 0.84rem;
+      line-height: 1.7;
+      color: var(--text-muted);
+      overflow-x: auto;
+      white-space: pre;
+    }
+    .foot .kw { color: var(--code-kw); }
+    .foot .ty { color: var(--teal); }
+    .foot .fn { color: var(--blue); }
+    .foot .nu { color: var(--amber); }
+    .foot .cm { color: var(--code-cm); font-style: italic; }
+
+    /* ── Pinned index readout ────────────────── */
+    .readout {
+      position: relative; z-index: 10;
+      border-top: 1px solid var(--border);
+      background: var(--bg);
+      padding: 14px 32px;
+      display: none;
+    }
+    .readout.on { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+    .ro-chip {
+      display: inline-flex;
+      gap: 8px;
+      padding: 6px 12px;
+      background: var(--bg-raised);
+      border: 1px solid var(--border);
+      border-radius: 3px;
+      font-family: var(--mono);
+      font-size: 0.78rem;
+    }
+    .ro-chip .rk { color: var(--text-muted); }
+    .ro-chip .rv { color: var(--text-hi); font-weight: 500; }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar { width: 5px; height: 5px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--scrollbar); border-radius: 2px; }
+
+    /* Animation */
+    @keyframes rowIn {
+      from { opacity: 0; transform: translateY(6px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    .anim-in { animation: rowIn 0.25s ease both; }
+
+    @media (max-width: 740px) {
+      .controls { padding: 12px 16px; }
+      .canvas { padding: 4px 16px 20px; }
+      .header, .summary, .view-bar, .foot, .readout { padding-left: 16px; padding-right: 16px; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Header -->
+  <div class="header">
+    <div class="header-mark"></div>
+    <h1>CUDA Grid Visualizer</h1>
+    <div class="header-spacer"></div>
+    <button class="theme-toggle" id="themeToggle" title="Toggle light/dark mode">☀</button>
+    <span class="header-tag">v1.0</span>
+  </div>
+
+  <!-- Controls -->
+  <div class="controls">
+    <div class="ctrl-group">
+      <span class="ctrl-label grid-label">Grid</span>
+      <span class="ctrl-axis">x</span><input id="gx" class="ctrl-input" type="number" min="1" max="128" value="2">
+      <span class="ctrl-axis">y</span><input id="gy" class="ctrl-input" type="number" min="1" max="128" value="2">
+      <span class="ctrl-axis">z</span><input id="gz" class="ctrl-input" type="number" min="1" max="64" value="1">
+    </div>
+    <div class="ctrl-sep"></div>
+    <div class="ctrl-group">
+      <span class="ctrl-label block-label">Block</span>
+      <span class="ctrl-axis">x</span><input id="bx" class="ctrl-input" type="number" min="1" max="1024" value="4">
+      <span class="ctrl-axis">y</span><input id="by" class="ctrl-input" type="number" min="1" max="1024" value="4">
+      <span class="ctrl-axis">z</span><input id="bz" class="ctrl-input" type="number" min="1" max="64" value="1">
+    </div>
+    <div class="ctrl-sep"></div>
+    <button class="ctrl-btn" id="btnGo">RENDER</button>
+  </div>
+
+  <!-- Summary -->
+  <div class="summary" id="summary">
+    <span class="val" id="sBlocks">4</span> blocks
+    <span class="sep">·</span>
+    <span class="val" id="sTpb">16</span> threads/block
+    <span class="sep">·</span>
+    <span class="val" id="sTotal">64</span> total threads
+    <span class="sep">·</span>
+    gridDim <span class="val" id="sGrid">(2,2,1)</span>
+    <span class="sep">·</span>
+    blockDim <span class="val" id="sBlock">(4,4,1)</span>
+    <span class="warn-msg" id="warn"></span>
+  </div>
+
+  <!-- Workspace -->
+  <div class="workspace">
+    <div class="view-bar">
+      <button class="view-pill on" id="pillGrid">grid</button>
+      <button class="view-pill" id="pillBlock">block</button>
+      <span class="crumb" id="crumb"></span>
+    </div>
+    <div class="canvas" id="canvas">
+      <div class="canvas-empty">adjust dimensions → RENDER</div>
+    </div>
+  </div>
+
+  <!-- Readout bar (on thread click) -->
+  <div class="readout" id="readout"></div>
+
+  <!-- Footer code -->
+  <div class="foot" id="foot"><span class="ty">dim3</span> <span class="fn">grid</span>(<span class="nu">2</span>, <span class="nu">2</span>, <span class="nu">1</span>);
+<span class="ty">dim3</span> <span class="fn">block</span>(<span class="nu">4</span>, <span class="nu">4</span>, <span class="nu">1</span>);
+<span class="fn">myKernel</span><span class="kw">&lt;&lt;&lt;</span><span class="fn">grid</span>, <span class="fn">block</span><span class="kw">&gt;&gt;&gt;</span>(...);  <span class="cm">// 64 threads launched</span></div>
+
+  <!-- Detail card -->
+  <div class="detail-card" id="dc">
+    <div class="dc-head" id="dcHead"></div>
+    <div id="dcBody"></div>
+  </div>
+
+<script>
+/* ── State ──────────────────────────────── */
+let G = { x:2, y:2, z:1 };
+let B = { x:4, y:4, z:1 };
+let selBlock = null;
+let pinThread = null;
+let view = 'grid';
+
+const $ = id => document.getElementById(id);
+const dc = $('dc');
+
+/* ── Read inputs ────────────────────────── */
+function read() {
+  G = { x: Math.max(1,+$('gx').value||1), y: Math.max(1,+$('gy').value||1), z: Math.max(1,+$('gz').value||1) };
+  B = { x: Math.max(1,+$('bx').value||1), y: Math.max(1,+$('by').value||1), z: Math.max(1,+$('bz').value||1) };
+}
+
+/* ── Validation & stats ─────────────────── */
+function refresh() {
+  const nb = G.x*G.y*G.z, tpb = B.x*B.y*B.z, tot = nb*tpb;
+  $('sBlocks').textContent = nb;
+  $('sTpb').textContent = tpb;
+  $('sTotal').textContent = tot.toLocaleString();
+  $('sGrid').textContent = `(${G.x},${G.y},${G.z})`;
+  $('sBlock').textContent = `(${B.x},${B.y},${B.z})`;
+
+  const w = $('warn');
+  if (tpb > 1024) { w.textContent = '⚠ threads/block > 1024'; w.classList.add('show'); return false; }
+  if (nb > 512)   { w.textContent = '⚠ too many blocks to render'; w.classList.add('show'); return false; }
+  if (tot > 300000){ w.textContent = '⚠ too many threads to render'; w.classList.add('show'); return false; }
+  w.classList.remove('show');
+  return true;
+}
+
+function updateCode() {
+  const tot = G.x*G.y*G.z * B.x*B.y*B.z;
+  $('foot').innerHTML =
+`<span class="ty">dim3</span> <span class="fn">grid</span>(<span class="nu">${G.x}</span>, <span class="nu">${G.y}</span>, <span class="nu">${G.z}</span>);
+<span class="ty">dim3</span> <span class="fn">block</span>(<span class="nu">${B.x}</span>, <span class="nu">${B.y}</span>, <span class="nu">${B.z}</span>);
+<span class="fn">myKernel</span><span class="kw">&lt;&lt;&lt;</span><span class="fn">grid</span>, <span class="fn">block</span><span class="kw">&gt;&gt;&gt;</span>(...);  <span class="cm">// ${tot.toLocaleString()} threads launched</span>`;
+}
+
+/* ── Render grid view ───────────────────── */
+function renderGrid() {
+  view = 'grid';
+  $('pillGrid').classList.add('on');
+  $('pillBlock').classList.remove('on');
+  $('crumb').innerHTML = '';
+  $('readout').classList.remove('on');
+  pinThread = null;
+
+  const c = $('canvas');
+  c.innerHTML = '';
+
+  for (let z = 0; z < G.z; z++) {
+    const grp = document.createElement('div');
+    grp.className = 'z-group anim-in';
+    grp.style.animationDelay = `${z * 40}ms`;
+
+    if (G.z > 1) {
+      const t = document.createElement('div');
+      t.className = 'z-tag';
+      t.textContent = `z = ${z}`;
+      grp.appendChild(t);
+    }
+
+    const layer = document.createElement('div');
+    layer.className = 'g-layer';
+    layer.style.gridTemplateColumns = `repeat(${G.x}, auto)`;
+
+    for (let y = 0; y < G.y; y++) {
+      for (let x = 0; x < G.x; x++) {
+        const el = document.createElement('div');
+        el.className = 'b-cell anim-in';
+        el.style.animationDelay = `${(z*G.y*G.x + y*G.x + x) * 18}ms`;
+        el.textContent = G.z > 1 ? `${x},${y},${z}` : `${x},${y}`;
+        if (selBlock && selBlock.x===x && selBlock.y===y && selBlock.z===z) el.classList.add('sel');
+
+        el.addEventListener('click', () => { selBlock = {x,y,z}; renderBlock(x,y,z); });
+        el.addEventListener('mouseenter', e => showBlockDC(e,x,y,z));
+        el.addEventListener('mousemove', moveDC);
+        el.addEventListener('mouseleave', hideDC);
+        layer.appendChild(el);
+      }
+    }
+    grp.appendChild(layer);
+    c.appendChild(grp);
+  }
+}
+
+/* ── Render block (thread) view ─────────── */
+function renderBlock(bx,by,bz) {
+  view = 'block';
+  $('pillGrid').classList.remove('on');
+  $('pillBlock').classList.add('on');
+  $('crumb').innerHTML = `<a id="bcBack">grid</a> / block(${bx},${by}${G.z>1?','+bz:''})`;
+  $('bcBack').addEventListener('click', renderGrid);
+  $('readout').classList.remove('on');
+  pinThread = null;
+
+  const c = $('canvas');
+  c.innerHTML = '';
+
+  for (let tz = 0; tz < B.z; tz++) {
+    const grp = document.createElement('div');
+    grp.className = 'z-group anim-in';
+    grp.style.animationDelay = `${tz * 40}ms`;
+
+    if (B.z > 1) {
+      const t = document.createElement('div');
+      t.className = 'z-tag';
+      t.textContent = `threadIdx.z = ${tz}`;
+      grp.appendChild(t);
+    }
+
+    const layer = document.createElement('div');
+    layer.className = 'g-layer';
+    layer.style.gridTemplateColumns = `repeat(${B.x}, auto)`;
+
+    for (let ty = 0; ty < B.y; ty++) {
+      for (let tx = 0; tx < B.x; tx++) {
+        const el = document.createElement('div');
+        el.className = 't-cell anim-in';
+        el.style.animationDelay = `${(tz*B.y*B.x + ty*B.x + tx) * 8}ms`;
+        el.textContent = B.z > 1 ? `${tx},${ty},${tz}` : `${tx},${ty}`;
+
+        el.addEventListener('mouseenter', e => showThreadDC(e,bx,by,bz,tx,ty,tz));
+        el.addEventListener('mousemove', moveDC);
+        el.addEventListener('mouseleave', hideDC);
+        el.addEventListener('click', function() {
+          // un-pin previous
+          c.querySelectorAll('.t-cell.pin').forEach(n => n.classList.remove('pin'));
+          this.classList.add('pin');
+          pinReadout(bx,by,bz,tx,ty,tz);
+        });
+        layer.appendChild(el);
+      }
+    }
+    grp.appendChild(layer);
+    c.appendChild(grp);
+  }
+}
+
+/* ── Detail card ────────────────────────── */
+function showBlockDC(e,x,y,z) {
+  const tpb = B.x*B.y*B.z;
+  const lin = z*G.y*G.x + y*G.x + x;
+  $('dcHead').textContent = `block (${x}, ${y}, ${z})`;
+  $('dcBody').innerHTML = row('blockIdx',`(${x}, ${y}, ${z})`) +
+    row('linear block id', lin) +
+    row('threads in block', tpb) +
+    row('global thread offset', lin*tpb);
+  moveDC(e); dc.classList.add('on');
+}
+
+function showThreadDC(e,bx,by,bz,tx,ty,tz) {
+  const lt = tz*B.y*B.x + ty*B.x + tx;
+  const lb = bz*G.y*G.x + by*G.x + bx;
+  const tpb = B.x*B.y*B.z;
+  const gl = lb*tpb + lt;
+  const gx = bx*B.x+tx, gy = by*B.y+ty, gz = bz*B.z+tz;
+
+  $('dcHead').textContent = `thread (${tx}, ${ty}, ${tz})`;
+  $('dcBody').innerHTML =
+    row('threadIdx', `(${tx}, ${ty}, ${tz})`) +
+    row('blockIdx', `(${bx}, ${by}, ${bz})`) +
+    row('global x,y,z', `(${gx}, ${gy}, ${gz})`) +
+    row('linear in block', lt) +
+    row('global linear id', gl);
+  moveDC(e); dc.classList.add('on');
+}
+
+function row(k,v) { return `<div class="dc-row"><span class="dc-k">${k}</span><span class="dc-v">${v}</span></div>`; }
+
+function moveDC(e) {
+  let x = e.clientX + 12, y = e.clientY + 12;
+  const r = dc.getBoundingClientRect();
+  if (x + 270 > window.innerWidth) x = e.clientX - 270;
+  if (y + r.height + 8 > window.innerHeight) y = e.clientY - r.height - 10;
+  dc.style.left = x + 'px';
+  dc.style.top  = y + 'px';
+}
+function hideDC() { dc.classList.remove('on'); }
+
+/* ── Readout bar (pinned thread) ────────── */
+function pinReadout(bx,by,bz,tx,ty,tz) {
+  const lt = tz*B.y*B.x + ty*B.x + tx;
+  const lb = bz*G.y*G.x + by*G.x + bx;
+  const tpb = B.x*B.y*B.z;
+  const gl = lb*tpb + lt;
+  const gx = bx*B.x+tx, gy = by*B.y+ty, gz = bz*B.z+tz;
+
+  const data = [
+    ['threadIdx', `(${tx},${ty},${tz})`],
+    ['blockIdx', `(${bx},${by},${bz})`],
+    ['blockDim', `(${B.x},${B.y},${B.z})`],
+    ['gridDim', `(${G.x},${G.y},${G.z})`],
+    ['linear in block', lt],
+    ['global (x,y,z)', `(${gx},${gy},${gz})`],
+    ['global linear', gl],
+    ['bx*Bx+tx', `${bx}*${B.x}+${tx} = ${gx}`],
+    ['by*By+ty', `${by}*${B.y}+${ty} = ${gy}`],
+  ];
+
+  $('readout').innerHTML = data.map(([k,v]) =>
+    `<div class="ro-chip"><span class="rk">${k}</span><span class="rv">${v}</span></div>`
+  ).join('');
+  $('readout').classList.add('on');
+}
+
+/* ── Main action ────────────────────────── */
+function go() {
+  read();
+  if (!refresh()) return;
+  updateCode();
+  selBlock = null;
+  renderGrid();
+}
+
+/* ── Events ─────────────────────────────── */
+$('btnGo').addEventListener('click', go);
+document.querySelectorAll('.ctrl-input').forEach(i =>
+  i.addEventListener('keydown', e => { if (e.key === 'Enter') go(); })
+);
+$('pillGrid').addEventListener('click', () => { if (view !== 'grid') renderGrid(); });
+$('pillBlock').addEventListener('click', () => { if (selBlock) renderBlock(selBlock.x, selBlock.y, selBlock.z); });
+
+/* ── Theme toggle ───────────────────────── */
+function applyTheme(theme) {
+  document.documentElement.setAttribute('data-theme', theme);
+  $('themeToggle').textContent = theme === 'light' ? '☾' : '☀';
+  $('themeToggle').title = theme === 'light' ? 'Switch to dark mode' : 'Switch to light mode';
+}
+
+$('themeToggle').addEventListener('click', () => {
+  const next = document.documentElement.getAttribute('data-theme') === 'light' ? 'dark' : 'light';
+  localStorage.setItem('cuda-viz-theme', next);
+  applyTheme(next);
+});
+
+// Restore saved theme (default: dark)
+const savedTheme = localStorage.getItem('cuda-viz-theme') || 'dark';
+applyTheme(savedTheme);
+
+// boot
+go();
+</script>
+</body>
+</html>
